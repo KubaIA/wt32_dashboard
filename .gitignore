@@ -1,0 +1,25 @@
+# PlatformIO build output
+.pio/
+.pioenvs/
+.piolibdeps/
+
+# VSCode settings
+.vscode/
+
+# Compiled binaries
+*.bin
+*.elf
+*.hex
+*.map
+
+# Temporary files
+*.tmp
+*.log
+
+# Python cache
+__pycache__/
+*.pyc
+
+# OS junk
+Thumbs.db
+.DS_Store
