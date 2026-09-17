@@ -5,6 +5,8 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdbool.h>
+#include "screen_page3.h"
+#include "screen_page4.h"
 
 static lv_obj_t* s_scr_page6 = NULL;
 static lv_obj_t* setting_list = NULL;
@@ -63,6 +65,7 @@ static void popup_save_cb(lv_event_t* e) {
 
         /* Mentés az SD-kártyára */
         config_save(&g_cfg);
+        screen_page3_force_update_location(g_cfg.weather.city);
 
         lv_obj_delete_async(popup);
     } else {
@@ -85,6 +88,7 @@ static void popup_ip_save_cb(lv_event_t* e) {
 
             if (target_config_str == g_cfg.inverter.ip && lbl_inverter_ip_val) {
                 lv_label_set_text(lbl_inverter_ip_val, text);
+                screen_page4_force_update_ip(text);
             } else if (target_config_str == g_cfg.gree.dev[0].ip && lbl_ac1_ip_val) {
                 lv_label_set_text(lbl_ac1_ip_val, text);
             } else if (target_config_str == g_cfg.gree.dev[1].ip && lbl_ac2_ip_val) {

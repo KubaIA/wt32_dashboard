@@ -1,5 +1,6 @@
 #include "screen_page3.h"
 #include "ui_common.h"
+#include "config.h"
 
 #pragma once
 #include <lvgl.h>
@@ -159,7 +160,7 @@ static void update_weather_cb(lv_timer_t* t) {
     lv_obj_set_style_bg_color(line_city_separator, text_color, 0);
 
     lv_image_set_src(img_weather, weathercode_to_icon(code, day));
-    lv_label_set_text(lbl_city, "Budapest");
+    lv_label_set_text(lbl_city, g_cfg.weather.city);
     lv_label_set_text(lbl_temp, "23.4°C");
     lv_label_set_text(lbl_code, weathercode_to_text(code));
     lv_label_set_text(lbl_hum, "Humidity: 48 %");
@@ -212,7 +213,7 @@ lv_obj_t* screen_page3_create(void) {
     /* ---- JOBB OLDAL: Város, Hőmérséklet és részletek ---- */
     lbl_city = lv_label_create(card_weather);
     lv_obj_set_style_text_font(lbl_city, &lv_font_montserrat_28, 0);
-    lv_label_set_text(lbl_city, "Budapest");
+    lv_label_set_text(lbl_city, g_cfg.weather.city);
     lv_obj_align(lbl_city, LV_ALIGN_TOP_LEFT, 250, 30);
 
     lbl_temp = lv_label_create(card_weather);
@@ -237,6 +238,12 @@ lv_obj_t* screen_page3_create(void) {
 
     /* Kezdeti színezés és állapot betöltése */
     update_weather_cb(NULL);
+    
+    return scr;    
+}
 
-    return scr;
+void screen_page3_force_update_location(const char* city) {
+    if (lbl_city && city) {
+        lv_label_set_text(lbl_city, city);
+    }
 }

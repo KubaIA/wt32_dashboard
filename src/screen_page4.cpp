@@ -1,6 +1,7 @@
 #include "screen_page4.h"
 #include "ui_common.h"
 #include "app.h"
+#include "config.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdbool.h>
@@ -165,7 +166,7 @@ lv_obj_t* screen_page4_create(void) {
 
     /* ---- INVERTER IP CÍM (A 3. oszlop, House felett az eredeti logika szerint) ---- */
     lbl_ip = lv_label_create(scr);
-    lv_label_set_text(lbl_ip, "192.168.1.150"); // Később: g_cfg.inverter.ip
+    lv_label_set_text(lbl_ip, g_cfg.inverter.ip);
     lv_obj_set_style_text_font(lbl_ip, &lv_font_montserrat_14, 0);
     lv_obj_set_style_text_color(lbl_ip, lv_color_white(), 0);
     
@@ -267,4 +268,10 @@ lv_obj_t* screen_page4_create(void) {
     update_grid_bar(-2250); // Negatív = Zöld export sáv
 
     return scr;
+}
+
+void screen_page4_force_update_ip(const char* ip) {
+    if (lbl_ip && ip) {
+        lv_label_set_text(lbl_ip, ip);
+    }
 }

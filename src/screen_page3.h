@@ -6,6 +6,7 @@ extern "C" {
 #endif
 
 lv_obj_t* screen_page3_create(void);
+void screen_page3_force_update_location(const char* city);
 
 #ifdef __cplusplus
 }
