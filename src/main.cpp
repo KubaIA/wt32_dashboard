@@ -2,6 +2,7 @@
 #include <lvgl.h>
 #include "LGFX_WT32_SC01_PLUS.h"
 #include "app.h"
+#include "config.h"
 
 LGFX lcd;
 
@@ -33,12 +34,24 @@ void my_touch_read(lv_indev_t *indev, lv_indev_data_t *data) {
     }
 }
 
+void display_set_brightness(uint8_t b_percent) {
+    if (b_percent < 10) b_percent = 10;
+    if (b_percent > 100) b_percent = 100;
+    // 10-100% átskálázása 25-255 közé (hogy sose kapcsoljon le teljesen feketére)
+    uint8_t duty = (uint8_t)((b_percent * 255) / 100);
+    lcd.setBrightness(duty);
+}
+
 void setup() {
     Serial.begin(115200);
+    delay(500);
+
+    /* ---- Konfiguráció betöltése SD-kártyáról ---- */
+    config_load(&g_cfg);
 
     lcd.init();
     lcd.setRotation(1);
-    lcd.setBrightness(128);
+    display_set_brightness(g_cfg.display.brightness);
 
     lv_init();
 
