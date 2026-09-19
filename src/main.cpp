@@ -3,6 +3,7 @@
 #include "LGFX_WT32_SC01_PLUS.h"
 #include "app.h"
 #include "config.h"
+#include "net_service.h"
 
 LGFX lcd;
 
@@ -48,6 +49,8 @@ void setup() {
 
     /* ---- Konfiguráció betöltése SD-kártyáról ---- */
     config_load(&g_cfg);
+    /* ---- Hálózati szolgáltatás inicializálása ---- */
+    net_service_init();
 
     lcd.init();
     lcd.setRotation(1);

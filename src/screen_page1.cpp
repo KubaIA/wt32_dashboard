@@ -98,6 +98,7 @@ lv_obj_t* screen_page1_create(void) {
 
     /* Frissítő timer (1 másodperc) */
     page1_timer = lv_timer_create(page1_time_update_cb, 1000, NULL);
+    page1_time_update_cb(NULL);
 
     return scr;
 }
