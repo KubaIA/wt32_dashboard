@@ -1,5 +1,6 @@
 #include "net_service.h"
 #include "config.h"
+#include "weather_service.h"
 #include <Arduino.h>
 #include <WiFi.h>
 #include <time.h>
@@ -59,23 +60,30 @@ static void net_task(void *pvParameters) {
                     sntp_set_time_sync_notification_cb(time_sync_notification_cb);
                     configTzTime(default_tz, ntp_server1, ntp_server2);
                 }
+
+                /* Egyszeri teszt lekérdezés a beállított városra */
+                weather_data_t w_data;
+                const char* target_city = (strlen(g_cfg.weather.city) > 0) ? g_cfg.weather.city : "Budapest";
+                weather_service_fetch(target_city, &w_data);
+                
             } else {
                 Serial.println("[NET] Wi-Fi csatlakozas sikertelen. Ujraprobalas 5 masodperc mulva.");
                 vTaskDelay(pdMS_TO_TICKS(5000));
             }
         } else {
             s_wifi_connected = true;
+            weather_service_loop();
             vTaskDelay(pdMS_TO_TICKS(3000)); // Kapcsolat ellenőrzése 3 másodpercenként
         }
     }
 }
 
 void net_service_init(void) {
-    /* 4096 bájtos stack méret, 1-es prioritás, Core 0 */
+    /* 10240 bájtos stack méret, 1-es prioritás, Core 0 */
     xTaskCreatePinnedToCore(
         net_task,
         "net_task",
-        4096,
+        10240,
         NULL,
         1,
         NULL,

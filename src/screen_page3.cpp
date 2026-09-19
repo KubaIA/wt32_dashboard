@@ -1,6 +1,7 @@
 #include "screen_page3.h"
 #include "ui_common.h"
 #include "config.h"
+#include "weather_service.h"
 
 #pragma once
 #include <lvgl.h>
@@ -132,15 +133,16 @@ static void screen_page3_delete_cb(lv_event_t* e) {
     s_scr_page3 = NULL;
 }
 
-/* Teszt / Demo frissítő (a valós Wi-Fi bekötésig) */
 static void update_weather_cb(lv_timer_t* t) {
     if (lv_screen_active() != s_scr_page3) return;
 
-    /* Teszt adatok: Napos idő, 23.4 °C */
-    bool day = true;
-    int code = 1; // Mostly Clear
+    weather_data_t w;
+    bool has_data = weather_service_get_data(&w);
 
-    // Kártya színe nappal/éjjel
+    bool day = has_data ? w.is_day : true;
+    int code = has_data ? w.weather_code : 0;
+
+    /* Kártya stílusa nappal / éjjel */
     if (day) {
         lv_obj_set_style_bg_color(card_weather, lv_color_hex(0x87CEFA), 0);
         lv_obj_set_style_bg_grad_color(card_weather, lv_color_hex(0x37C4E8), 0);
@@ -161,11 +163,28 @@ static void update_weather_cb(lv_timer_t* t) {
 
     lv_image_set_src(img_weather, weathercode_to_icon(code, day));
     lv_label_set_text(lbl_city, g_cfg.weather.city);
-    lv_label_set_text(lbl_temp, "23.4°C");
     lv_label_set_text(lbl_code, weathercode_to_text(code));
-    lv_label_set_text(lbl_hum, "Humidity: 48 %");
-    lv_label_set_text(lbl_wind, "Wind: 3.2 m/s  140°");
-    lv_label_set_text(lbl_uv, "UV index: 5.1");
+
+    if (has_data) {
+        char buf[64];
+
+        snprintf(buf, sizeof(buf), "%.1f°C", w.temperature);
+        lv_label_set_text(lbl_temp, buf);
+
+        snprintf(buf, sizeof(buf), "Humidity: %d %%", w.humidity);
+        lv_label_set_text(lbl_hum, buf);
+
+        snprintf(buf, sizeof(buf), "Wind: %.1f km/h  %d°", w.wind_speed, w.wind_direction);
+        lv_label_set_text(lbl_wind, buf);
+
+        snprintf(buf, sizeof(buf), "UV index: %.1f", w.uv_index);
+        lv_label_set_text(lbl_uv, buf);
+    } else {
+        lv_label_set_text(lbl_temp, "--.-°C");
+        lv_label_set_text(lbl_hum, "Humidity: -- %");
+        lv_label_set_text(lbl_wind, "Wind: -- km/h");
+        lv_label_set_text(lbl_uv, "UV index: --");
+    }
 }
 
 /* ---- Képernyő létrehozása 480x320 felbontásra ---- */
@@ -236,10 +255,11 @@ lv_obj_t* screen_page3_create(void) {
     lv_label_set_text(lbl_uv, "UV index: 5.1");
     lv_obj_align(lbl_uv, LV_ALIGN_TOP_LEFT, 250, 250);
 
-    /* Kezdeti színezés és állapot betöltése */
+    /* Frissítő timer bekapcsolása (2 másodpercenként ellenőrzi az új adatot) */
+    weather_timer = lv_timer_create(update_weather_cb, 2000, NULL);
     update_weather_cb(NULL);
     
-    return scr;    
+    return scr;  
 }
 
 void screen_page3_force_update_location(const char* city) {
