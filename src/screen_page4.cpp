@@ -2,6 +2,7 @@
 #include "ui_common.h"
 #include "app.h"
 #include "config.h"
+#include "fronius_service.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdbool.h>
@@ -87,7 +88,43 @@ static void update_grid_bar(int grid_w) {
     }
 }
 
+static lv_timer_t* fronius_timer = NULL;
+
+static void update_fronius_ui_cb(lv_timer_t* t) {
+    if (lv_screen_active() != s_scr_page4) return;
+
+    fronius_data_t d;
+    if (!fronius_service_get_data(&d)) return;
+
+    char buf[32];
+
+    /* 1. PV (kW-ban, 2 tizedessel) */
+    update_pv_bar((int)d.power_pv);
+    snprintf(buf, sizeof(buf), "%.2f", d.power_pv / 1000.0f);
+    lv_label_set_text(lbl_pv_value, buf);
+
+    /* 2. Akkumulátor (SOC %) */
+    int soc_val = (int)round(d.soc); //kerekítés a legközelebbi egész számra
+    lv_bar_set_value(bar_soc, soc_val, LV_ANIM_OFF);
+    snprintf(buf, sizeof(buf), "%d", soc_val);
+    lv_label_set_text(lbl_soc_value, buf);
+
+    /* 3. Load / Ház (kW-ban) */
+    update_load_bar((int)d.power_load);
+    snprintf(buf, sizeof(buf), "%.2f", d.power_load / 1000.0f);
+    lv_label_set_text(lbl_load_value, buf);
+
+    /* 4. Grid (kW-ban, előjellel arányosan) */
+    update_grid_bar((int)d.power_grid);
+    snprintf(buf, sizeof(buf), "%.2f", fabsf(d.power_grid) / 1000.0f);
+    lv_label_set_text(lbl_grid_value, buf);
+}
+
 static void screen_page4_delete_cb(lv_event_t* e) {
+    if (fronius_timer) {
+        lv_timer_del(fronius_timer);
+        fronius_timer = NULL;
+    }
     s_scr_page4 = NULL;
 }
 
@@ -266,6 +303,10 @@ lv_obj_t* screen_page4_create(void) {
     lv_bar_set_value(bar_soc, 85, LV_ANIM_OFF);
     update_load_bar(1200);
     update_grid_bar(-2250); // Negatív = Zöld export sáv
+
+    /* UI frissítése másodpercenként */
+    fronius_timer = lv_timer_create(update_fronius_ui_cb, 1000, NULL);
+    update_fronius_ui_cb(NULL);
 
     return scr;
 }

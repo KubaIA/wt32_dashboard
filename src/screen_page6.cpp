@@ -7,6 +7,7 @@
 #include <stdbool.h>
 #include "screen_page3.h"
 #include "screen_page4.h"
+#include "fronius_service.h"
 
 static lv_obj_t* s_scr_page6 = NULL;
 static lv_obj_t* setting_list = NULL;
@@ -78,17 +79,22 @@ static void popup_ip_save_cb(lv_event_t* e) {
     char* target_config_str = (char*)lv_event_get_user_data(e);
     lv_obj_t* btn = lv_event_get_target_obj(e);
     lv_obj_t* popup = lv_obj_get_parent(btn);
-    lv_obj_t* ta = (lv_obj_t*)lv_obj_get_child(popup, 1);
-    const char* text = lv_textarea_get_text(ta);
+
+    /* A popup user_data mezőjéből közvetlenül és biztosan elérjük a textareát */
+    lv_obj_t* ta = (lv_obj_t*)lv_obj_get_user_data(popup);
+    const char* text = ta ? lv_textarea_get_text(ta) : NULL;
 
     if (text && strlen(text) > 0) {
         if (validate_ipv4(text)) {
             strncpy(target_config_str, text, 16 - 1);
             target_config_str[15] = '\0';
 
-            if (target_config_str == g_cfg.inverter.ip && lbl_inverter_ip_val) {
-                lv_label_set_text(lbl_inverter_ip_val, text);
+            if (target_config_str == g_cfg.inverter.ip) {
+                if (lbl_inverter_ip_val) {
+                    lv_label_set_text(lbl_inverter_ip_val, text);
+                }
                 screen_page4_force_update_ip(text);
+                fronius_service_force_refresh(); /* Azonnali újralekérés az új IP-vel */
             } else if (target_config_str == g_cfg.gree.dev[0].ip && lbl_ac1_ip_val) {
                 lv_label_set_text(lbl_ac1_ip_val, text);
             } else if (target_config_str == g_cfg.gree.dev[1].ip && lbl_ac2_ip_val) {
@@ -102,8 +108,10 @@ static void popup_ip_save_cb(lv_event_t* e) {
 
             lv_obj_delete_async(popup);
         } else {
-            lv_obj_set_style_border_color(ta, lv_palette_main(LV_PALETTE_RED), 0);
-            lv_obj_set_style_border_width(ta, 2, 0);
+            if (ta) {
+                lv_obj_set_style_border_color(ta, lv_palette_main(LV_PALETTE_RED), 0);
+                lv_obj_set_style_border_width(ta, 2, 0);
+            }
         }
     } else {
         lv_obj_delete_async(popup);
@@ -295,6 +303,9 @@ static void ip_click_cb(lv_event_t* e) {
     lv_obj_set_style_bg_color(ta, lv_color_hex(0x252525), 0);
     lv_obj_set_style_text_color(ta, lv_color_white(), 0);
     lv_obj_set_style_text_font(ta, &lv_font_montserrat_14, 0);
+
+    /* Eltároljuk a textarea mutatóját a popupon a stabil visszakereséshez */
+    lv_obj_set_user_data(popup, ta);
 
     lv_obj_t* kb = lv_keyboard_create(popup);
     lv_obj_set_size(kb, 440, 150);

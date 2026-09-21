@@ -1,6 +1,7 @@
 #include "net_service.h"
 #include "config.h"
 #include "weather_service.h"
+#include "fronius_service.h"
 #include <Arduino.h>
 #include <WiFi.h>
 #include <time.h>
@@ -73,6 +74,7 @@ static void net_task(void *pvParameters) {
         } else {
             s_wifi_connected = true;
             weather_service_loop();
+            fronius_service_loop();
             vTaskDelay(pdMS_TO_TICKS(3000)); // Kapcsolat ellenőrzése 3 másodpercenként
         }
     }
