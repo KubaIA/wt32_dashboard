@@ -2,6 +2,7 @@
 #include "config.h"
 #include "weather_service.h"
 #include "fronius_service.h"
+#include "gree_service.h"
 #include <Arduino.h>
 #include <WiFi.h>
 #include <time.h>
@@ -41,6 +42,9 @@ static void net_task(void *pvParameters) {
         if (WiFi.status() != WL_CONNECTED) {
             s_wifi_connected = false;
             Serial.printf("[NET] Csatlakozas a Wi-Fi-hez: %s...\n", g_cfg.wifi.ssid);
+            IPAddress dns1(8, 8, 8, 8);
+            IPAddress dns2(1, 1, 1, 1);
+            WiFi.config(INADDR_NONE, INADDR_NONE, INADDR_NONE, dns1, dns2); 
             WiFi.begin(g_cfg.wifi.ssid, g_cfg.wifi.password);
 
             int retry = 0;
@@ -75,6 +79,7 @@ static void net_task(void *pvParameters) {
             s_wifi_connected = true;
             weather_service_loop();
             fronius_service_loop();
+            gree_service_loop();
             vTaskDelay(pdMS_TO_TICKS(3000)); // Kapcsolat ellenőrzése 3 másodpercenként
         }
     }

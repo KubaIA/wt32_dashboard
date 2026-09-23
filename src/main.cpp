@@ -4,6 +4,7 @@
 #include "app.h"
 #include "config.h"
 #include "net_service.h"
+#include "gree_service.h"
 
 LGFX lcd;
 
@@ -51,6 +52,8 @@ void setup() {
     config_load(&g_cfg);
     /* ---- Hálózati szolgáltatás inicializálása ---- */
     net_service_init();
+    /// ---- Gree szolgáltatás inicializálása ---- */
+    gree_service_init();
 
     lcd.init();
     lcd.setRotation(1);

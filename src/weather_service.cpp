@@ -123,18 +123,22 @@ bool weather_service_get_data(weather_data_t* out_data) {
 }
 
 void weather_service_loop(void) {
-    /* 10 percenként frissítünk (600 000 ms), vagy ha még sosem sikerült */
+    if (WiFi.status() != WL_CONNECTED) return;
+
+    static unsigned long s_next_run = 0;
     unsigned long now = millis();
-    if (!s_latest_weather.valid || (now - s_last_fetch_ms > 600000)) {
-        weather_data_t temp_data;
-        const char* city = (strlen(g_cfg.weather.city) > 0) ? g_cfg.weather.city : "Budapest";
-        if (weather_service_fetch(city, &temp_data)) {
-            s_latest_weather = temp_data;
-            s_last_fetch_ms = millis();
-        } else {
-            /* Hiba esetén 30 másodperc múlva újrapróbáljuk */
-            s_last_fetch_ms = now - 600000 + 30000;
-        }
+
+    if (now < s_next_run) return;
+
+    weather_data_t temp_data;
+    const char* city = (strlen(g_cfg.weather.city) > 0) ? g_cfg.weather.city : "Budapest";
+    
+    if (weather_service_fetch(city, &temp_data)) {
+        s_latest_weather = temp_data;
+        s_next_run = now + (15 * 60 * 1000); // Siker: 15 perc
+    } else {
+        s_next_run = now + (60 * 1000);      // Hiba: szigorúan 1 percig semmit sem csinál!
+        Serial.println("[WEATHER] Hiba tortent, varakozas 1 percig...");
     }
 }
 
