@@ -44,8 +44,8 @@ static void net_task(void *pvParameters) {
             s_wifi_connected = false;
             Serial.printf("[NET] Csatlakozas a Wi-Fi-hez: %s...\n", g_cfg.wifi.ssid);
 
-            WiFi.disconnect(true); // törli a beragadt socketeket/kapcsolatot
-            vTaskDelay(pdMS_TO_TICKS(100)); // 100ms pihenő a radiónak
+            WiFi.disconnect(true);
+            vTaskDelay(pdMS_TO_TICKS(100));
 
             IPAddress dns1(8, 8, 8, 8);
             IPAddress dns2(1, 1, 1, 1);
@@ -85,13 +85,12 @@ static void net_task(void *pvParameters) {
             weather_service_loop();
             fronius_service_loop();
             gree_service_loop();
-            vTaskDelay(pdMS_TO_TICKS(100)); // Kapcsolat ellenőrzése
+            vTaskDelay(pdMS_TO_TICKS(100));
         }
     }
 }
 
 void net_service_init(void) {
-    /* 10240 bájtos stack méret, 1-es prioritás, Core 0 */
     xTaskCreatePinnedToCore(
         net_task,
         "net_task",

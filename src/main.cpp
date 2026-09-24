@@ -5,6 +5,7 @@
 #include "config.h"
 #include "net_service.h"
 #include "gree_service.h"
+#include "pc_service.h" // <-- 1. INCLUDE HOZZÁADVA
 
 LGFX lcd;
 
@@ -48,11 +49,14 @@ void setup() {
     Serial.begin(115200);
     delay(500);
 
+    /* ---- PC telemetria szolgáltatás azonnali indítása (USB + UDP) ---- */
+    pc_service_init(8080); // <-- 2. INDÍTÁS A BOOTKOR, FÜGGETLENÜL A WI-FITŐL
+
     /* ---- Konfiguráció betöltése SD-kártyáról ---- */
     config_load(&g_cfg);
     /* ---- Hálózati szolgáltatás inicializálása ---- */
     net_service_init();
-    /// ---- Gree szolgáltatás inicializálása ---- */
+    /* ---- Gree szolgáltatás inicializálása ---- */
     gree_service_init();
 
     lcd.init();
