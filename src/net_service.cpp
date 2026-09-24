@@ -30,6 +30,7 @@ static void net_task(void *pvParameters) {
 
     /* Wi-Fi mód beállítása állomás (Station) üzemmódra */
     WiFi.mode(WIFI_STA);
+    WiFi.setSleep(false); // modem sleepet tiltjuk, hogy a kapcsolat stabil maradjon
 
     while (1) {
         /* Ha nincs beállítva SSID, várunk */
@@ -42,6 +43,10 @@ static void net_task(void *pvParameters) {
         if (WiFi.status() != WL_CONNECTED) {
             s_wifi_connected = false;
             Serial.printf("[NET] Csatlakozas a Wi-Fi-hez: %s...\n", g_cfg.wifi.ssid);
+
+            WiFi.disconnect(true); // törli a beragadt socketeket/kapcsolatot
+            vTaskDelay(pdMS_TO_TICKS(100)); // 100ms pihenő a radiónak
+
             IPAddress dns1(8, 8, 8, 8);
             IPAddress dns2(1, 1, 1, 1);
             WiFi.config(INADDR_NONE, INADDR_NONE, INADDR_NONE, dns1, dns2); 
@@ -80,7 +85,7 @@ static void net_task(void *pvParameters) {
             weather_service_loop();
             fronius_service_loop();
             gree_service_loop();
-            vTaskDelay(pdMS_TO_TICKS(3000)); // Kapcsolat ellenőrzése 3 másodpercenként
+            vTaskDelay(pdMS_TO_TICKS(100)); // Kapcsolat ellenőrzése
         }
     }
 }

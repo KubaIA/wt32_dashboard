@@ -5,6 +5,8 @@
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include "gree_service.h"
+#include "config.h"
 
 /* Képek */
 #include "pictures/img_off.h"
@@ -20,6 +22,7 @@
 #define CARD_TOP_Y   12
 
 static lv_obj_t* s_scr_page5 = NULL;
+static lv_timer_t* s_page5_timer = NULL;
 
 /* Stílusok a kártyákhoz */
 static lv_style_t style_card_idle;
@@ -60,7 +63,7 @@ static void init_custom_styles(void) {
     styles_inited = true;
 }
 
-/* Állapotfrissítő segédfüggvény (demo mód az 5. fázisig) */
+/* Állapotfrissítő segédfüggvény */
 static void apply_ac_state(int idx, bool power, int set_temp, int room_temp) {
     if (idx < 0 || idx >= AC_COUNT) return;
 
@@ -69,9 +72,24 @@ static void apply_ac_state(int idx, bool power, int set_temp, int room_temp) {
     lv_obj_remove_style(s_ac[idx].card, &style_card_idle, LV_PART_MAIN);
 
     if (!power) {
+        // Kikapcsolt állapot: szürke kártya, letiltott slider
         lv_obj_add_style(s_ac[idx].card, &style_card_idle, LV_PART_MAIN);
         lv_image_set_src(s_ac[idx].icon_obj, &img_off);
+        
+        // Slider letiltása, hogy ne lehessen elhúzni
+        lv_obj_add_state(s_ac[idx].temp_slider, LV_STATE_DISABLED);
+
+        // Kikapcsolva a csúszka és a felirat a szobahőmérsékletet mutatja
+        int disp_temp = room_temp;
+        if (disp_temp < 18) disp_temp = 18;
+        if (disp_temp > 30) disp_temp = 30;
+
+        lv_slider_set_value(s_ac[idx].temp_slider, disp_temp, LV_ANIM_OFF);
+        lv_label_set_text_fmt(s_ac[idx].temp_val_lbl, "%d°C", room_temp);
     } else {
+        // Bekapcsolt állapot: slider aktív
+        lv_obj_clear_state(s_ac[idx].temp_slider, LV_STATE_DISABLED);
+
         if (room_temp > set_temp) {
             lv_obj_add_style(s_ac[idx].card, &style_card_cool, LV_PART_MAIN);
             lv_image_set_src(s_ac[idx].icon_obj, &img_frost);
@@ -82,30 +100,76 @@ static void apply_ac_state(int idx, bool power, int set_temp, int room_temp) {
             lv_obj_add_style(s_ac[idx].card, &style_card_idle, LV_PART_MAIN);
             lv_image_set_src(s_ac[idx].icon_obj, &img_off);
         }
+
+        // Bekapcsolva a célhőmérsékletet mutatja a slider és a felirat
+        lv_slider_set_value(s_ac[idx].temp_slider, set_temp, LV_ANIM_OFF);
+        lv_label_set_text_fmt(s_ac[idx].temp_val_lbl, "%d°C", set_temp);
     }
 
-    lv_label_set_text_fmt(s_ac[idx].temp_val_lbl, "%d°C", set_temp);
     lv_label_set_text_fmt(s_ac[idx].status_lbl, "Room: %d°C", room_temp);
 }
 
-/* Callbackek az érintéshez */
+/* Periodikus frissítő: másodpercenként kiolvassa a valós telemetriát */
+static void page5_update_timer_cb(lv_timer_t* timer) {
+    if (!s_scr_page5) return;
+
+    for (int i = 0; i < AC_COUNT; i++) {
+        gree_state_t st;
+        if (gree_service_get_state(i, &st)) {
+            // Switch állapot szinkronizálása a valós adatokkal
+            if (st.power) {
+                lv_obj_add_state(s_ac[i].power_sw, LV_STATE_CHECKED);
+            } else {
+                lv_obj_clear_state(s_ac[i].power_sw, LV_STATE_CHECKED);
+            }
+
+            apply_ac_state(i, st.power, st.temp_set, st.temp_current);
+        } else {
+            lv_label_set_text(s_ac[i].status_lbl, "Connecting...");
+        }
+    }
+}
+
+/* Callbackek az érintéshez - valós parancsküldéssel */
 static void power_sw_cb(lv_event_t* e) {
     int idx = (int)(intptr_t)lv_event_get_user_data(e);
     lv_obj_t* sw = lv_event_get_target_obj(e);
     bool on = lv_obj_has_state(sw, LV_STATE_CHECKED);
-    int val = lv_slider_get_value(s_ac[idx].temp_slider);
-    apply_ac_state(idx, on, val, 24); // Teszt szobahőmérséklet: 24 °C
+
+    // Parancs küldése
+    gree_service_set_power(idx, on);
+
+    // Helyi felület azonnali frissítése a memóriában lévő adatokkal
+    gree_state_t st;
+    int room = 24, set_temp = 24;
+    if (gree_service_get_state(idx, &st)) {
+        room = st.temp_current;
+        set_temp = st.temp_set;
+    }
+    apply_ac_state(idx, on, set_temp, room);
 }
 
 static void temp_slider_cb(lv_event_t* e) {
     int idx = (int)(intptr_t)lv_event_get_user_data(e);
     lv_obj_t* slider = lv_event_get_target_obj(e);
     int val = lv_slider_get_value(slider);
+
+    // Hőmérséklet parancs kiküldése
+    gree_service_set_temp(idx, (int8_t)val);
+
+    // Helyi felület azonnali reagálása
     bool on = lv_obj_has_state(s_ac[idx].power_sw, LV_STATE_CHECKED);
-    apply_ac_state(idx, on, val, 24);
+    gree_state_t st;
+    int room = 24;
+    if (gree_service_get_state(idx, &st)) room = st.temp_current;
+    apply_ac_state(idx, on, val, room);
 }
 
 static void screen_page5_delete_cb(lv_event_t* e) {
+    if (s_page5_timer) {
+        lv_timer_del(s_page5_timer);
+        s_page5_timer = NULL;
+    }
     s_scr_page5 = NULL;
 }
 
@@ -120,8 +184,6 @@ lv_obj_t* screen_page5_create(void) {
     lv_obj_set_style_bg_opa(scr, LV_OPA_COVER, 0);
     lv_obj_add_event_cb(scr, screen_page5_delete_cb, LV_EVENT_DELETE, NULL);
 
-    const char* default_ips[3] = { "192.168.1.101", "192.168.1.102", "192.168.1.103" };
-
     for (int i = 0; i < AC_COUNT; i++) {
         int x_pos = CARD_SPACING + i * (CARD_W + CARD_SPACING);
 
@@ -134,9 +196,14 @@ lv_obj_t* screen_page5_create(void) {
         lv_obj_set_style_pad_all(card, 0, 0);
         lv_obj_clear_flag(card, LV_OBJ_FLAG_SCROLLABLE);
 
-        /* 1. IP Cím */
+        /* 1. IP Cím a konfigurációból */
         s_ac[i].ip_lbl = lv_label_create(card);
-        lv_label_set_text(s_ac[i].ip_lbl, default_ips[i]);
+        const char* dev_ip = g_cfg.gree.dev[i].ip;
+        if (dev_ip && strlen(dev_ip) > 0) {
+            lv_label_set_text(s_ac[i].ip_lbl, dev_ip);
+        } else {
+            lv_label_set_text_fmt(s_ac[i].ip_lbl, "AC #%d", i + 1);
+        }
         lv_obj_set_style_text_font(s_ac[i].ip_lbl, &lv_font_montserrat_14, 0);
         lv_obj_align(s_ac[i].ip_lbl, LV_ALIGN_TOP_MID, 0, 8);
 
@@ -192,17 +259,9 @@ lv_obj_t* screen_page5_create(void) {
         lv_obj_align(s_ac[i].status_lbl, LV_ALIGN_BOTTOM_MID, 0, -8);
     }
 
-    /* Tesztállapotok: 1. kikapcsolva, 2. hűtés (21°C), 3. fűtés (26°C) */
-    lv_obj_clear_state(s_ac[0].power_sw, LV_STATE_CHECKED);
-    apply_ac_state(0, false, 22, 24);
-
-    lv_obj_add_state(s_ac[1].power_sw, LV_STATE_CHECKED);
-    lv_slider_set_value(s_ac[1].temp_slider, 21, LV_ANIM_OFF);
-    apply_ac_state(1, true, 21, 24); // 24 > 21 -> Kék (Cool)
-
-    lv_obj_add_state(s_ac[2].power_sw, LV_STATE_CHECKED);
-    lv_slider_set_value(s_ac[2].temp_slider, 26, LV_ANIM_OFF);
-    apply_ac_state(2, true, 26, 24); // 24 < 26 -> Piros (Heat)
+    // Első azonnali frissítés, majd 1000 ms-os periodikus frissítés
+    page5_update_timer_cb(NULL);
+    s_page5_timer = lv_timer_create(page5_update_timer_cb, 1000, NULL);
 
     return scr;
 }

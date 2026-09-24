@@ -349,22 +349,24 @@ static void handle_incoming_packets(void) {
                     return;
                 }
 
-                /* Egyébként telemetria feldolgozás */
+                //* Egyébként telemetria feldolgozás */
                 JsonArray dat = inner_doc["dat"];
-                if (!dat.isNull() && dat.size() >= 5) {
+                if (!dat.isNull() && dat.size() >= 4) {
                     s_sessions[dev_idx].state.power        = (dat[0].as<int>() == 1);
                     s_sessions[dev_idx].state.mode         = (gree_mode_t)dat[1].as<int>();
                     s_sessions[dev_idx].state.temp_set     = dat[2].as<int>();
                     int raw_cur = dat[3].as<int>();
                     s_sessions[dev_idx].state.temp_current = (raw_cur > 40) ? (raw_cur - 40) : raw_cur;
-                    s_sessions[dev_idx].state.fan          = (gree_fan_t)dat[4].as<int>();
+                    if (dat.size() >= 5) {
+                        s_sessions[dev_idx].state.fan      = (gree_fan_t)dat[4].as<int>();
+                    }
                     s_sessions[dev_idx].state.valid        = true;
 
                     Serial.printf("[GREE %d TELEMETRIA] Be: %s | Cel: %d C | Szoba: %d C\n",
-                                  dev_idx + 1,
-                                  s_sessions[dev_idx].state.power ? "BE" : "KI",
-                                  s_sessions[dev_idx].state.temp_set,
-                                  s_sessions[dev_idx].state.temp_current);
+                                dev_idx + 1,
+                                s_sessions[dev_idx].state.power ? "BE" : "KI",
+                                s_sessions[dev_idx].state.temp_set,
+                                s_sessions[dev_idx].state.temp_current);
                 }
             }
         }
